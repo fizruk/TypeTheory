@@ -196,6 +196,19 @@ Section Auxiliary.
   Qed.
 
   (* TODO: move upstream? *)
+  Definition iscontr_disp_id_comp_of_discrete_fibration
+             {C : category}
+             {D : disp_cat C}
+             (is_discrete_fibration_D : is_discrete_fibration D)
+    : iscontr (disp_cat_id_comp C D).
+  Proof.
+    apply iscontraprop1.
+    - apply isaprop_disp_id_comp_of_discrete_fibration.
+      apply is_discrete_fibration_D.
+    - apply (pr2 (pr1 D)).
+  Defined.
+
+  (* TODO: move upstream? *)
   Definition isaprop_is_discrete_fibration
              {C : category}
              (D : disp_cat C)
@@ -227,7 +240,138 @@ Section Auxiliary.
     apply isaprop_is_cartesian.
   Qed.
 
+  Definition is_discrete_fibration'
+             (C : category)
+             (ob_disp : C → UU)
+    := ∑ (mor_disp : ∏ {x y : C}, ob_disp x → ob_disp y → (x --> y) → UU)
+         (id_disp : ∏ {x : C} (xx : ob_disp x), mor_disp xx xx (identity x))
+         (comp_disp : ∏ {x y z : C} {f : x --> y} {g : y --> z}
+                        {xx : ob_disp x} {yy : ob_disp y} {zz : ob_disp z},
+                      mor_disp xx yy f -> mor_disp yy zz g -> mor_disp xx zz (f ;; g))
+         (id_left_disp : ∏ {x y} {f : x --> y} {xx} {yy} (ff : mor_disp xx yy f),
+                         comp_disp (id_disp xx) ff
+                         = transportb (λ g, mor_disp xx yy g) (id_left _) ff)
+         (id_right_disp : ∏ {x y} {f : x --> y} {xx} {yy} (ff : mor_disp xx yy f),
+                          comp_disp ff (id_disp yy)
+                          = transportb (λ g, mor_disp xx yy g) (id_right _) ff)
+         (assoc_disp : ∏ {x y z w} {f : x --> y} {g : y --> z} {h : z --> w}
+                         {xx} {yy} {zz} {ww}
+                         (ff : mor_disp xx yy f) (gg : mor_disp yy zz g) (hh : mor_disp zz ww h),
+                       comp_disp ff (comp_disp gg hh)
+                       = transportb (λ k, mor_disp _ _ k) (assoc _ _ _)
+                                    (comp_disp (comp_disp ff gg) hh))
+         (homsets_disp : ∏ {x y} {f : x --> y} {xx} {yy}, isaset (mor_disp xx yy f)),
+       (forall (c c' : C) (f : c' --> c) (d : ob_disp c),
+           ∃! d' : ob_disp c', mor_disp d' d f)
+         ×
+         (forall c, isaset (ob_disp c)).
+
+  Definition discrete_fibration' (C : category)
+    := ∑ (ob_disp : C → UU), is_discrete_fibration' C ob_disp.
+
+  Definition discrete_fibration'_weq
+             {C : category}
+    : discrete_fibration C ≃ discrete_fibration' C.
+  Proof.
+    eapply weqcomp. apply weqtotal2asstor.
+    eapply weqcomp. apply weqtotal2asstor.
+    eapply weqcomp. apply weqtotal2asstor.
+    apply (weqtotal2 (idweq _)). intros ?.
+    apply (weqtotal2 (idweq _)). intros ?.
+    eapply weqcomp. apply weqtotal2asstor.
+    apply (weqtotal2 (idweq _)). intros ?.
+    apply (weqtotal2 (idweq _)). intros ?.
+    eapply weqcomp. apply weqtotal2asstor.
+    apply (weqtotal2 (idweq _)). intros ?.
+    eapply weqcomp. apply weqtotal2asstor.
+    apply (weqtotal2 (idweq _)). intros ?.
+    eapply weqcomp. apply weqtotal2asstor.
+    apply (weqtotal2 (idweq _)). intros ?.
+    apply (weqtotal2 (idweq _)). intros ?.
+    apply (weqtotal2 (idweq _)). intros ?.
+    apply idweq.
+  Defined.
+
+  Definition isaprop_is_discrete_fibration'
+             (C : category)
+             (ob_disp : C → UU)
+    : isaprop (is_discrete_fibration' C ob_disp).
+  Proof.
+    intros X Y.
+    use tpair.
+    - use total2_paths_f.
+      (* STUCK *)
+  Defined.
+
+  Definition discrete_fibration'_weq
+             {C : category}
+    : discrete_fibration C ≃ discrete_fibration' C.
+  Proof.
+    use weq_iso.
+
+    - intros DC.
+      exists (pr1 DC).
+      use make_dirprod.
+      + intros c c' f d.
+        exact (pr1 (pr1 (pr1 (pr2 DC) c c' f d))).
+      + apply (dirprod_pr2 (pr2 DC)).
+
+    - intros DC.
+      set (ob := pr1 DC).
+      set (lift_ob := pr1 (pr2 DC)).
+      use tpair.
+      + use tpair.
+        * use tpair.
+          -- exists ob.
+             intros c c' d d' f.
+             exact (lift_ob c' c f d' = d).
+          -- apply
+
+    eapply weqcomp. use (weqtotal2 (idweq _)). 2: intros ?; apply weqtotal2asstor.
+
+    eapply weqcomp. apply weqtotal2asstor.
+    eapply weqcomp. apply weqtotal2asstor.
+    eapply weqcomp. apply weqtotal2asstor.
+    apply (weqtotal2 (idweq _)). intros ob.
+  Defined.
+
 End Auxiliary.
+
+(*
+  [disp_cat]
+    [disp_cat_data]
+      [disp_ob_mor]
+        [ob_disp]
+        [mor_disp]              (isaprop when is_discrete_fibration)
+      [disp_id_comp]            (isaprop when is_discrete_fibration)
+    [disp_cat_axioms]           (isaprop)
+  [is_discrete_fibration]       (isaprop)
+    [unique_lift]
+      [lift]
+        [ob]
+        [mor]                   
+      [uniqueness]              
+  [disp_functor]
+    [disp_functor_data]
+      [Fob]
+        [ext]
+        [dpr]
+      [Fmor]
+        [q]                     
+        [dpr_q]                 (isaprop)
+    [disp_functor_axioms]       (isaprop)
+  [is_cartesian_disp_functor]   (isaprop)
+*)
+
+Definition discrete_comprehension_cat_structure' (C : category) : UU
+  := ∑ (ob : C → UU)
+       (lift_ob : ∏ (Γ Γ' : C), ob Γ' → (Γ --> Γ') → ob Γ)
+       (lift_id : ∏ (Γ : C) (A : ob Γ), lift_ob Γ Γ A (identity Γ) = A)
+       (lift_comp : ∏ (Γ Γ' Γ'': C) (A : ob Γ) (A' : ob Γ') (A'' : ob Γ'')
+                      (f : Γ --> Γ') (g : Γ' --> Γ'')
+                      (ff : lift_ob _ _ A' f = A) (gg : lift_ob _ _ A'' g = A')
+                    , lift_ob Γ Γ'' A'' (f ;; g) = lift_ob _ _ (lift_ob _ _ A'' g) f),
+       unit.
 
 Definition discrete_comprehension_cat_structure (C : category) : UU
   := ∑ (D : disp_cat C)
@@ -526,8 +670,8 @@ Section A.
 
     Lemma ololo
           (DC : discrete_comprehension_cat_structure C)
-      : pr1 (discrete_comprehension_cat_structure_from_split_typecat_structure
-          (split_typecat_structure_from_discrete_comprehension_cat_structure DC))
+      : disp_cat_from_split_typecat_structure
+          (split_typecat_structure_from_discrete_comprehension_cat_structure DC)
           = pr1 DC.
     Proof.
       set (D := pr1 DC).
