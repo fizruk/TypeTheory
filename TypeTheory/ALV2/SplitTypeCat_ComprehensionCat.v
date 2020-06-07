@@ -251,12 +251,24 @@ Section Auxiliary.
     apply invweq, weqforalltototal3.
   Defined.
 
-  Definition is_discrete_fibration'
+  Definition mor_with_unique_lift
              (C : category)
              (ob_disp : C → UU)
-    := ∑ (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
-         (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
-         (mor_disp : ∏ {x y : C}, ob_disp x → ob_disp y → (x --> y) → UU)
+             (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+             (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    := ∑ (mor_disp : ∏ {x y : C}, ob_disp x → ob_disp y → (x --> y) → UU)
+         (lift_mor : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c),
+                     mor_disp (lift_ob c c' f d) d f),
+       (* lift_unique : *) ∏ (c c' : C) (f : c' --> c) (d : ob_disp c),
+       ∏ (t : ∑ (d' : ob_disp c'), mor_disp d' d f),
+       t = (lift_ob c c' f d ,, lift_mor c c' f d).
+
+  Definition is_discrete_fibration''
+             (C : category)
+             (ob_disp : C → UU)
+             (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+             (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    := ∑ (mor_disp : ∏ {x y : C}, ob_disp x → ob_disp y → (x --> y) → UU)
          (lift_mor : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c),
                      mor_disp (lift_ob c c' f d) d f)
          (lift_unique : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c),
@@ -280,6 +292,13 @@ Section Auxiliary.
                        = transportb (λ k, mor_disp _ _ k) (assoc _ _ _)
                                     (comp_disp (comp_disp ff gg) hh)),
        (* (homsets_disp : *) ∏ {x y} {f : x --> y} {xx} {yy}, isaset (mor_disp xx yy f).
+
+  Definition is_discrete_fibration'
+             (C : category)
+             (ob_disp : C → UU)
+    := ∑ (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+         (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c'),
+       is_discrete_fibration'' _ _ isaset_ob_disp lift_ob.
 
   Definition discrete_fibration' (C : category)
     := ∑ (ob_disp : C → UU), is_discrete_fibration' C ob_disp.
@@ -366,6 +385,237 @@ Section Auxiliary.
       apply idweq.
   Defined.
 
+  (* TODO: move upstream? *)
+  Definition unique_lift_explicit'
+             {C : category}
+             (ob_disp : C → UU)
+             (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+             (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+             (X : is_discrete_fibration'' _ _ isaset_ob_disp lift_ob)
+             {c' c : C} (f : c' --> c) (d' : ob_disp c') (d : ob_disp c)
+             (ff : pr1 X _ _ d' d f)
+    : ∃! (d' : ob_disp c'), pr1 X _ _ d' d f.
+  Proof.
+    exists (d' ,, ff).
+    intros Y.
+    etrans. apply (pr1 (pr2 (pr2 X)) _ _ f d).
+    apply pathsinv0, (pr1 (pr2 (pr2 X)) _ _ f d).
+  Defined.
+
+  (* TODO: move upstream? *)
+  Definition unique_lift_explicit_eq'
+             {C : category}
+             (ob_disp : C → UU)
+             (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+             (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+             (X : is_discrete_fibration'' _ _ isaset_ob_disp lift_ob)
+             {c' c : C} (f : c' --> c) (d' : ob_disp c') (d : ob_disp c)
+             (ff : pr1 X _ _ d' d f)
+    : ((lift_ob _ _ f d ,, pr1 (pr2 X) _ _ f d) ,, pr1 (pr2 (pr2 X)) _ _ f d)
+      = unique_lift_explicit' ob_disp isaset_ob_disp lift_ob X f d' d ff.
+  Proof.
+    apply isapropiscontr.
+  Defined.
+
+  (* TODO: move upstream? *)
+  Definition transportf_maponpaths_pr1
+             {A : UU} {B : A → UU}
+             {x y : ∑ (a : A), B a}
+             (e : x = y)
+    : transportf B (maponpaths pr1 e) (pr2 x) = (pr2 y).
+  Proof.
+    induction e. apply idpath.
+  Defined.
+
+  Lemma mor_is_discrete_fibration''
+        {C : category}
+        {ob_disp : C → UU}
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        {lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c'}
+        (X : mor_with_unique_lift _ _ isaset_ob_disp lift_ob)
+        {c' c : C} (f : c' --> c) (d' : ob_disp c') (d : ob_disp c)
+    : pr1 X c' c d' d f = (lift_ob c c' f d = d').
+  Proof.
+    apply univalenceweq.
+    set (k := pr1 (pr2 X) c c' f d).
+    set (k_unique := pr2 (pr2 X) c c' f d).
+    use weq_iso.
+    - intros ff. apply (! maponpaths pr1 (k_unique (d' ,, ff))).
+    - intros p. apply (transportf (λ dd, pr1 X c' c dd d f) p k).
+    - intros ff. simpl.
+      apply (transportf_pathsinv0' (λ dd, pr1 X c' c dd d f)).
+      apply (transportf_maponpaths_pr1 (k_unique (d',,ff))).
+    - intros ?. apply isaset_ob_disp.
+  Defined.
+
+  Lemma isaprop_mor_is_discrete_fibration''
+        {C : category}
+        {ob_disp : C → UU}
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        {lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c'}
+        (X : mor_with_unique_lift _ _ isaset_ob_disp lift_ob)
+        {c' c : C} (f : c' --> c) (d' : ob_disp c') (d : ob_disp c)
+    : isaprop (pr1 X c' c d' d f).
+  Proof.
+    induction (! mor_is_discrete_fibration'' isaset_ob_disp X f d' d).
+    apply isaset_ob_disp.
+  Qed.
+
+  Definition a_mor_with_unique_lift
+             (C : category)
+             (ob_disp : C → UU)
+             (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+             (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    : mor_with_unique_lift _ _ isaset_ob_disp lift_ob.
+  Proof.
+    exists (λ c' c d' d f, lift_ob c c' f d = d').
+    exists (λ c c' f d, idpath _).
+    intros c c' f d t.
+    use total2_paths_f.
+    - apply (! pr2 t).
+    - apply isaset_ob_disp.
+  Defined.
+
+  Definition mor_with_unique_lift_eq
+        (C : category)
+        (ob_disp : C → UU)
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+        (X Y : mor_with_unique_lift _ _ isaset_ob_disp lift_ob)
+    : X = Y.
+  Proof.
+    use total2_paths_f.
+    - apply funextsec; intros c.
+      apply funextsec; intros c'.
+      apply funextsec; intros d.
+      apply funextsec; intros d'.
+      apply funextsec; intros f.
+      etrans. apply mor_is_discrete_fibration''.
+      apply pathsinv0.
+      apply mor_is_discrete_fibration''.
+    - use total2_paths_f.
+      + apply funextsec; intros c.
+        apply funextsec; intros c'.
+        apply funextsec; intros d.
+        apply funextsec; intros d'.
+        apply isaprop_mor_is_discrete_fibration''.
+      + apply funextsec; intros c.
+        apply funextsec; intros c'.
+        apply funextsec; intros d.
+        apply funextsec; intros d'.
+        apply funextsec; intros t.
+        apply isaset_total2.
+        * apply isaset_ob_disp.
+        * intros d''.
+          apply isasetaprop.
+          apply isaprop_mor_is_discrete_fibration''.
+  Qed.
+
+  Lemma iscontr_mor_with_unique_lift
+        (C : category)
+        (ob_disp : C → UU)
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    : iscontr (mor_with_unique_lift _ _ isaset_ob_disp lift_ob).
+  Proof.
+    exists (a_mor_with_unique_lift _ _ isaset_ob_disp lift_ob).
+    intros X. apply mor_with_unique_lift_eq.
+  Defined.
+
+  Definition a_is_discrete_fibration''
+             (C : category)
+             (ob_disp : C → UU)
+             (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+             (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    : is_discrete_fibration'' _ _ isaset_ob_disp lift_ob.
+  Proof.
+    exists (λ c' c d' d f, lift_ob c c' f d = d').
+    exists (λ c c' f d, idpath _).
+    use make_dirprod.
+    - intros c c' f d t.
+      use total2_paths_f.
+      + apply (! pr2 t).
+      + apply isaset_ob_disp.
+    - exists (λ c d, idpath _).
+  Defined.
+
+  
+
+  Lemma isaprop_mor_with_unique_lift
+        (C : category)
+        (ob_disp : C → UU)
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    : isaprop (mor_with_unique_lift _ _ isaset_ob_disp lift_ob).
+  Proof.
+    intros X Y.
+    use tpair.
+    - use total2_paths_f.
+      + apply funextsec; intros c.
+        apply funextsec; intros c'.
+        apply funextsec; intros d.
+        apply funextsec; intros d'.
+        apply funextsec; intros f.
+        etrans. apply mor_is_discrete_fibration''.
+        apply pathsinv0.
+        apply mor_is_discrete_fibration''.
+      + use total2_paths_f.
+        * apply funextsec; intros c.
+          apply funextsec; intros c'.
+          apply funextsec; intros d.
+          apply funextsec; intros d'.
+          apply isaprop_mor_is_discrete_fibration''.
+        * apply funextsec; intros c.
+          apply funextsec; intros c'.
+          apply funextsec; intros d.
+          apply funextsec; intros d'.
+          apply funextsec; intros t.
+          apply isaset_total2.
+          -- apply isaset_ob_disp.
+          -- intros d''.
+             apply isasetaprop.
+             apply isaprop_mor_is_discrete_fibration''.
+    - intros p.
+      Search (maponpaths pr1 ?x = maponpaths pr1 ?y).
+      Check p.
+      apply isaset_total2.
+      + apply impred_isaset; intros c.
+        apply impred_isaset; intros c'.
+        apply impred_isaset; intros d.
+        apply impred_isaset; intros d'.
+        apply impred_isaset; intros f.
+        apply isaprop_mor_is_discrete_fibration''.
+        
+  Defined.
+  
+
+  Lemma isaprop_is_discrete_fibration''
+        (C : category)
+        (ob_disp : C → UU)
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    : isaprop (is_discrete_fibration'' _ _ isaset_ob_disp lift_ob).
+  Proof.
+    intros X Y.
+    use tpair.
+    - 
+
+    apply Propositions.isaproptotal2.
+    - 
+    induction (! mor_is_discrete_fibration'' _ _ _A.)
+    apply (pr2 is_discrete_fibration_D).
+  Qed.
+
+  Lemma iscontr_is_discrete_fibration''
+        (C : category)
+        (ob_disp : C → UU)
+        (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+        (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+    : iscontr (is_discrete_fibration'' _ _ isaset_ob_disp lift_ob).
+  Proof.
+    use iscontraprop1.
+    - 
+  Defined.
 
 End Auxiliary.
 
