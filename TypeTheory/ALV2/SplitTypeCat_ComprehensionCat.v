@@ -240,10 +240,29 @@ Section Auxiliary.
     apply isaprop_is_cartesian.
   Qed.
 
+  (* TODO: move upstream? *)
+  Lemma weqtotaltoforall3 {X : UU}
+        (P1 : X → UU)
+        (P2 : ∏ x : X, P1 x → UU)
+        (P3 : ∏ (x : X) (y : P1 x), P2 x y → UU)
+    : (∑ (p1 : ∏ x : X, P1 x) (p2 : ∏ x : X, P2 x (p1 x)), ∏ x : X, P3 x (p1 x) (p2 x))
+    ≃ (∏ x : X, ∑ (p1 : P1 x) (p2 : P2 x p1), P3 x p1 p2).
+  Proof.
+    apply invweq, weqforalltototal3.
+  Defined.
+
   Definition is_discrete_fibration'
              (C : category)
              (ob_disp : C → UU)
-    := ∑ (mor_disp : ∏ {x y : C}, ob_disp x → ob_disp y → (x --> y) → UU)
+    := ∑ (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
+         (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+         (mor_disp : ∏ {x y : C}, ob_disp x → ob_disp y → (x --> y) → UU)
+         (lift_mor : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c),
+                     mor_disp (lift_ob c c' f d) d f)
+         (lift_unique : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c),
+                        ∏ (t : ∑ (d' : ob_disp c'), mor_disp d' d f),
+                        t = (lift_ob c c' f d ,, lift_mor c c' f d))
+
          (id_disp : ∏ {x : C} (xx : ob_disp x), mor_disp xx xx (identity x))
          (comp_disp : ∏ {x y z : C} {f : x --> y} {g : y --> z}
                         {xx : ob_disp x} {yy : ob_disp y} {zz : ob_disp z},
@@ -259,12 +278,8 @@ Section Auxiliary.
                          (ff : mor_disp xx yy f) (gg : mor_disp yy zz g) (hh : mor_disp zz ww h),
                        comp_disp ff (comp_disp gg hh)
                        = transportb (λ k, mor_disp _ _ k) (assoc _ _ _)
-                                    (comp_disp (comp_disp ff gg) hh))
-         (homsets_disp : ∏ {x y} {f : x --> y} {xx} {yy}, isaset (mor_disp xx yy f)),
-       (forall (c c' : C) (f : c' --> c) (d : ob_disp c),
-           ∃! d' : ob_disp c', mor_disp d' d f)
-         ×
-         (forall c, isaset (ob_disp c)).
+                                    (comp_disp (comp_disp ff gg) hh)),
+       (* (homsets_disp : *) ∏ {x y} {f : x --> y} {xx} {yy}, isaset (mor_disp xx yy f).
 
   Definition discrete_fibration' (C : category)
     := ∑ (ob_disp : C → UU), is_discrete_fibration' C ob_disp.
@@ -273,67 +288,84 @@ Section Auxiliary.
              {C : category}
     : discrete_fibration C ≃ discrete_fibration' C.
   Proof.
+    (* ob_disp *)
     eapply weqcomp. apply weqtotal2asstor.
     eapply weqcomp. apply weqtotal2asstor.
     eapply weqcomp. apply weqtotal2asstor.
-    apply (weqtotal2 (idweq _)). intros ?.
-    apply (weqtotal2 (idweq _)). intros ?.
+    apply (weqtotal2 (idweq _)). intros ob_disp.
+
+    (* isaset_ob_disp *)
+    eapply weqcomp. apply weqtotal2asstol'.
+    eapply weqcomp. apply weqtotal2asstol'.
+    eapply weqcomp. apply weqtotal2asstol'.
+    eapply weqcomp. simpl. apply weqdirprodcomm.
+    apply (weqtotal2 (idweq _)). intros isaset_ob_disp.
+
+    (* mor_disp *)
     eapply weqcomp. apply weqtotal2asstor.
-    apply (weqtotal2 (idweq _)). intros ?.
-    apply (weqtotal2 (idweq _)). intros ?.
     eapply weqcomp. apply weqtotal2asstor.
-    apply (weqtotal2 (idweq _)). intros ?.
-    eapply weqcomp. apply weqtotal2asstor.
-    apply (weqtotal2 (idweq _)). intros ?.
-    eapply weqcomp. apply weqtotal2asstor.
-    apply (weqtotal2 (idweq _)). intros ?.
-    apply (weqtotal2 (idweq _)). intros ?.
-    apply (weqtotal2 (idweq _)). intros ?.
-    apply idweq.
+    eapply weqcomp. 2: apply WeakEquivalences.weqtotal2comm.
+    apply (weqtotal2 (idweq _)). intros mor_disp.
+
+    eapply weqcomp. apply weqtotal2asstol'. simpl.
+    eapply weqcomp. apply weqdirprodcomm.
+    eapply weqcomp. 2: apply weqtotal2asstor'.
+    eapply weqcomp. 2: apply weqtotal2asstor'. simpl.
+    use weqdirprodf.
+
+    - (* unique_lift *)
+      apply invweq.
+      eapply weqcomp. apply weqtotal2asstor.
+      eapply weqcomp.
+      apply (weqtotaltoforall3
+               (λ c, ∏ (c' : C), C ⟦ c', c ⟧ → ob_disp c → ob_disp c')
+               (λ c lift_ob, ∏ c' f d, mor_disp c' c (lift_ob c' f d) d f)
+               (λ c lift_ob lift_mor, ∏ c' f d,
+                ∏ (t : ∑ d' : ob_disp c', mor_disp c' c d' d f),
+                t = lift_ob c' f d,, lift_mor c' f d)
+            ).
+      apply weqonsecfibers; intros c.
+
+      eapply weqcomp.
+      apply (weqtotaltoforall3
+               (λ c', C ⟦ c', c ⟧ → ob_disp c → ob_disp c')
+               (λ c' lift_ob, ∏ f d, mor_disp c' c (lift_ob f d) d f)
+               (λ c' lift_ob lift_mor, ∏ f d,
+                ∏ (t : ∑ d' : ob_disp c', mor_disp c' c d' d f),
+                t = lift_ob f d,, lift_mor f d)
+            ).
+      apply weqonsecfibers; intros c'.
+
+      eapply weqcomp.
+      apply (weqtotaltoforall3
+               (λ (f : C ⟦ c', c ⟧), ob_disp c → ob_disp c')
+               (λ f lift_ob, ∏ d, mor_disp c' c (lift_ob d) d f)
+               (λ f lift_ob lift_mor, ∏ d,
+                ∏ (t : ∑ d' : ob_disp c', mor_disp c' c d' d f),
+                t = lift_ob d,, lift_mor d)
+            ).
+      apply weqonsecfibers; intros f.
+
+      eapply weqcomp.
+      apply (weqtotaltoforall3
+               (λ (d : ob_disp c), ob_disp c')
+               (λ d lift_ob, mor_disp c' c lift_ob d f)
+               (λ d lift_ob lift_mor,
+                ∏ (t : ∑ d' : ob_disp c', mor_disp c' c d' d f),
+                t = lift_ob,, lift_mor)
+            ).
+      apply weqonsecfibers; intros d.
+      apply weqtotal2asstol'.
+
+    - eapply weqcomp. apply weqtotal2asstor.
+      apply (weqtotal2 (idweq _)); intros ?.
+      apply (weqtotal2 (idweq _)); intros ?.
+      apply (weqtotal2 (idweq _)); intros ?.
+      apply (weqtotal2 (idweq _)); intros ?.
+      apply (weqtotal2 (idweq _)); intros ?.
+      apply idweq.
   Defined.
 
-  Definition isaprop_is_discrete_fibration'
-             (C : category)
-             (ob_disp : C → UU)
-    : isaprop (is_discrete_fibration' C ob_disp).
-  Proof.
-    intros X Y.
-    use tpair.
-    - use total2_paths_f.
-      (* STUCK *)
-  Defined.
-
-  Definition discrete_fibration'_weq
-             {C : category}
-    : discrete_fibration C ≃ discrete_fibration' C.
-  Proof.
-    use weq_iso.
-
-    - intros DC.
-      exists (pr1 DC).
-      use make_dirprod.
-      + intros c c' f d.
-        exact (pr1 (pr1 (pr1 (pr2 DC) c c' f d))).
-      + apply (dirprod_pr2 (pr2 DC)).
-
-    - intros DC.
-      set (ob := pr1 DC).
-      set (lift_ob := pr1 (pr2 DC)).
-      use tpair.
-      + use tpair.
-        * use tpair.
-          -- exists ob.
-             intros c c' d d' f.
-             exact (lift_ob c' c f d' = d).
-          -- apply
-
-    eapply weqcomp. use (weqtotal2 (idweq _)). 2: intros ?; apply weqtotal2asstor.
-
-    eapply weqcomp. apply weqtotal2asstor.
-    eapply weqcomp. apply weqtotal2asstor.
-    eapply weqcomp. apply weqtotal2asstor.
-    apply (weqtotal2 (idweq _)). intros ob.
-  Defined.
 
 End Auxiliary.
 
@@ -341,7 +373,7 @@ End Auxiliary.
   [disp_cat]
     [disp_cat_data]
       [disp_ob_mor]
-        [ob_disp]
+        [ob_disp]               *
         [mor_disp]              (isaprop when is_discrete_fibration)
       [disp_id_comp]            (isaprop when is_discrete_fibration)
     [disp_cat_axioms]           (isaprop)
@@ -354,10 +386,10 @@ End Auxiliary.
   [disp_functor]
     [disp_functor_data]
       [Fob]
-        [ext]
-        [dpr]
+        [ext]                   *
+        [dpr]                   *
       [Fmor]
-        [q]                     
+        [q]                     *
         [dpr_q]                 (isaprop)
     [disp_functor_axioms]       (isaprop)
   [is_cartesian_disp_functor]   (isaprop)
