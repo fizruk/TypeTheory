@@ -527,6 +527,10 @@ Section Auxiliary.
              (ob_disp : C → UU)
              (isaset_ob_disp : ∏ (c : C), isaset (ob_disp c))
              (lift_ob : ∏ (c c' : C) (f : c' --> c) (d : ob_disp c), ob_disp c')
+             (id_disp : ∏ (c : C) (d : ob_disp c), lift_ob _ _ (identity c) d = d)
+             (comp_disp : ∏ (c c' c'' : C) (f : c --> c') (g : c' --> c'')
+                            (d : ob_disp c) (d' : ob_disp c') (d'' : ob_disp c''),
+                            lift_ob _ _ (f ;; g) d'' = lift_ob _ _ f (lift_ob _ _ g d''))
     : is_discrete_fibration'' _ _ isaset_ob_disp lift_ob.
   Proof.
     exists (λ c' c d' d f, lift_ob c c' f d = d').
@@ -536,10 +540,15 @@ Section Auxiliary.
       use total2_paths_f.
       + apply (! pr2 t).
       + apply isaset_ob_disp.
-    - exists (λ c d, idpath _).
+    - exists id_disp.
+      exists (λ c c' c'' f g d d' d'' ff gg,
+              comp_disp c c' c'' f g d d' d'' @ maponpaths _ gg @ ff).
+      repeat use make_dirprod.
+      + intros. apply isaset_ob_disp.
+      + intros. apply isaset_ob_disp.
+      + intros. apply isaset_ob_disp.
+      + intros. apply isasetaprop. apply isaset_ob_disp.
   Defined.
-
-  
 
   Lemma isaprop_mor_with_unique_lift
         (C : category)
@@ -624,13 +633,13 @@ End Auxiliary.
     [disp_cat_data]
       [disp_ob_mor]
         [ob_disp]               *
-        [mor_disp]              (isaprop when is_discrete_fibration)
-      [disp_id_comp]            (isaprop when is_discrete_fibration)
+        [mor_disp]              
+      [disp_id_comp]            
     [disp_cat_axioms]           (isaprop)
   [is_discrete_fibration]       (isaprop)
     [unique_lift]
       [lift]
-        [ob]
+        [ob]                    *
         [mor]                   
       [uniqueness]              
   [disp_functor]
